@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  FileText, CheckCircle2, CreditCard, XCircle, Clock, TrendingUp,
+  FileText, CheckCircle2, CreditCard, XCircle, Clock, TrendingUp, DollarSign, Percent,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -27,7 +27,9 @@ const kpiDefs = [
   { key: 'totalPayes', label: 'Payés', icon: CreditCard, color: 'text-teal-600', bg: 'bg-teal-50' },
   { key: 'totalRejetes', label: 'Rejetés', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
   { key: 'delaiMoyenGlobal', label: 'Délai moyen (j)', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+  { key: 'montantTotalReclame', label: 'Montant réclamé', icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50', format: true },
   { key: 'montantTotalPaye', label: 'Montant payé', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', format: true },
+  { key: 'tauxRejet', label: 'Taux de rejet', icon: Percent, color: 'text-red-600', bg: 'bg-red-50', isPercent: true },
 ];
 
 const serviceColors: Record<string, string> = {
@@ -40,8 +42,8 @@ export default function DirectionView({ kpis, loading }: DirectionViewProps) {
   if (loading || !kpis) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i}><CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent></Card>
           ))}
         </div>
@@ -75,7 +77,7 @@ export default function DirectionView({ kpis, loading }: DirectionViewProps) {
                   <span className="text-xs text-muted-foreground font-medium">{def.label}</span>
                 </div>
                 <p className="text-2xl font-bold tracking-tight">
-                  {def.format ? formatMontantCourt(val) : val.toLocaleString('fr-FR')}
+                  {def.format ? formatMontantCourt(val) : def.isPercent ? `${val}%` : val.toLocaleString('fr-FR')}
                 </p>
               </CardContent>
             </Card>
