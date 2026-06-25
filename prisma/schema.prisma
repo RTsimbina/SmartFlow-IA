@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Societe {
+  id        String    @id @default(cuid())
+  nom       String
+  dossiers  Dossier[]
+  createdAt DateTime  @default(now())
+}
+
+model Gestionnaire {
+  id        String    @id @default(cuid())
+  nom       String
+  service   String
+  dossiersAccueil   Dossier[] @relation("GestionnaireAccueil")
+  dossiersTechnique Dossier[] @relation("GestionnaireTechnique")
+  dossiersCompta    Dossier[] @relation("GestionnaireCompta")
+  createdAt DateTime  @default(now())
+}
+
+model Dossier {
+  id                        String       @id @default(cuid())
+  numeroDossier             String       @unique
+  dateReception             DateTime
+  societeId                 String
+  societe                   Societe      @relation(fields: [societeId], references: [id])
+  beneficiaire              String
+  typeDossier               String
+  gestionnaireAccueilId     String?
+  gestionnaireAccueil       Gestionnaire? @relation("GestionnaireAccueil", fields: [gestionnaireAccueilId], references: [id])
+  dateTraitementTechnique   DateTime?
+  montantReclame            Float
+  montantValide             Float?
+  ticketModerateur          Float?
+  partPatient               Float?
+  partEntreprise            Float?
+  gestionnaireTechniqueId   String?
+  gestionnaireTechnique     Gestionnaire? @relation("GestionnaireTechnique", fields: [gestionnaireTechniqueId], references: [id])
+  motifRejet                String?
+  dateReceptionDecompte     DateTime?
+  datePaiement              DateTime?
+  referencePaiement         String?
+  montantPaye               Float?
+  gestionnaireComptaId      String?
+  gestionnaireCompta        Gestionnaire? @relation("GestionnaireCompta", fields: [gestionnaireComptaId], references: [id])
+  statut                    String       @default("RECU")
+  source                    String       @default("EXCEL")
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+}
