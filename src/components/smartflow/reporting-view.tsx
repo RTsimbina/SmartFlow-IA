@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, DollarSign, Clock, CheckCircle2, Plus, FileBarChart, TrendingUp } from 'lucide-react';
+import { Building2, DollarSign, Clock, CheckCircle2, Plus, FileBarChart, TrendingUp, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,33 @@ const STATUT_LABEL: Record<string, string> = {
 export default function ReportingView() {
   const [tab, setTab] = useState<'contrats' | 'appels' | 'rapport'>('contrats');
   const [contrats, setContrats] = useState<Contrat[]>([]);
+  const [rapportMois, setRapportMois] = useState(new Date().getMonth() + 1);
+  const [generatingRapport, setGeneratingRapport] = useState(false);
+
+  const handleGenererRapport = async () => {
+    setGeneratingRapport(true);
+    try {
+      const res = await fetch(`/api/reporting/rapport?mois=${rapportMois}&annee=2026`);
+      if (!res.ok) {
+        toast.error('Erreur lors de la génération du rapport');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapport-smartflow-2026-${String(rapportMois).padStart(2, '0')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Rapport PDF téléchargé avec succès');
+    } catch {
+      toast.error('Erreur réseau lors de la génération');
+    } finally {
+      setGeneratingRapport(false);
+    }
+  };
   const [appels, setAppels] = useState<AppelFonds[]>([]);
   const [filterStatut, setFilterStatut] = useState('TOUS');
   const [loading, setLoading] = useState(true);
@@ -250,8 +277,14 @@ export default function ReportingView() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="space-y-1.5"><Label>Mois</Label>
-                <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                  {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin'].map(m => <option key={m}>{m}</option>)}
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                  value={rapportMois}
+                  onChange={e => setRapportMois(Number(e.target.value))}
+                >
+                  {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5"><Label>Entreprise</Label>
@@ -271,11 +304,9 @@ export default function ReportingView() {
               </ul>
             </div>
             <div className="flex gap-2">
-              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => toast.success('Rapport envoyé par email (HTML + PDF en pièce jointe)')}>
-                <TrendingUp className="size-4 mr-1" />Générer et envoyer le rapport
-              </Button>
-              <Button variant="outline" onClick={() => toast.success('Aperçu généré')}>
-                Aperçu
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleGenererRapport} disabled={generatingRapport}>
+                {generatingRapport ? <Loader2 className="size-4 mr-1 animate-spin" /> : <TrendingUp className="size-4 mr-1" />}
+                Télécharger le rapport PDF
               </Button>
             </div>
           </Card>

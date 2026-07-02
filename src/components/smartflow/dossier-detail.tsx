@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  Upload,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, formatMontant, statutLabel, statutColor, typeDossierLabel } from './format';
@@ -149,6 +150,35 @@ export default function DossierDetail({ dossierId, onClose }: DossierDetailProps
   const [commentPrive, setCommentPrive] = useState(false);
   const [sendingComment, setSendingComment] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'historique' | 'commentaires' | 'justificatifs'>('info');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadType, setUploadType] = useState('FACTURE');
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async () => {
+    if (!uploadFile || !dossierId) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('dossierId', dossierId);
+      formData.append('type', uploadType);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: 'Erreur', description: err.erreur || "Échec de l'upload", variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Fichier ajouté', description: `${uploadFile.name} a été téléchargé avec succès` });
+      setUploadFile(null);
+      const fileInput = document.getElementById('upload-justificatif') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      fetchDossier();
+    } catch {
+      toast({ title: 'Erreur réseau', description: "Impossible de télécharger le fichier", variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const fetchDossier = useCallback(async () => {
     setLoading(true);
@@ -491,6 +521,42 @@ export default function DossierDetail({ dossierId, onClose }: DossierDetailProps
             {/* Tab: Justificatifs */}
             {activeTab === 'justificatifs' && (
               <div className="space-y-3">
+                {/* Upload form */}
+                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end p-3 rounded-lg border border-dashed bg-muted/30">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Fichier (PDF, JPG, PNG, max 10 Mo)</label>
+                    <input
+                      type="file"
+                      id="upload-justificatif"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    />
+                  </div>
+                  <Select value={uploadType} onValueChange={setUploadType}>
+                    <SelectTrigger className="h-9 w-full sm:w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FACTURE">Facture</SelectItem>
+                      <SelectItem value="ORDONNANCE">Ordonnance</SelectItem>
+                      <SelectItem value="RIB">RIB</SelectItem>
+                      <SelectItem value="CARNET_SOINS">Carnet de soins</SelectItem>
+                      <SelectItem value="DECOMPTE">Décompte</SelectItem>
+                      <SelectItem value="AUTRE">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-9 gap-1 shrink-0"
+                    onClick={handleUpload}
+                    disabled={uploading || !uploadFile}
+                  >
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    Ajouter
+                  </Button>
+                </div>
+
                 {dossier.justificatifs && dossier.justificatifs.length > 0 ? (
                   dossier.justificatifs.map((j) => (
                     <div
@@ -513,7 +579,7 @@ export default function DossierDetail({ dossierId, onClose }: DossierDetailProps
                         </div>
                       </div>
                       <Button variant="outline" size="sm" className="h-8 text-xs gap-1" asChild>
-                        <a href={`/${j.chemin}`} download={j.nomFichier} target="_blank" rel="noopener noreferrer">
+                        <a href={`/api/upload?id=${j.id}`} download={j.nomFichier} target="_blank" rel="noopener noreferrer">
                           <Download className="h-3.5 w-3.5" />
                           Télécharger
                         </a>

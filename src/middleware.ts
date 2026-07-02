@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 // Seules ces routes sont véritablement publiques (pas besoin de token)
 const PUBLIC_PATHS = ['/login'];
 const AUTH_API_PATHS = ['/api/auth/'];
+const WEBHOOK_API_PATHS = ['/api/webhook/']; // WhatsApp, Telegram, Messenger
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,6 +24,11 @@ export async function middleware(request: NextRequest) {
 
   // 2. Autoriser les routes NextAuth (connexion/déconnexion)
   if (AUTH_API_PATHS.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next();
+  }
+
+  // 2b. Autoriser les webhooks externes (WhatsApp, Telegram, Messenger)
+  if (WEBHOOK_API_PATHS.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
   }
 

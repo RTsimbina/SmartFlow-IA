@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { compare } from 'bcryptjs';
 import { db } from '@/lib/db';
 
@@ -48,6 +49,10 @@ function resetAttempts(email: string) {
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_ID || '',
+    }),
     CredentialsProvider({
       name: 'Identifiants',
       credentials: {
@@ -109,9 +114,9 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
-        token.nom = user.nom;
-        token.email = user.email;
+        token.role = user.role || 'UTILISATEUR';
+        token.nom = (user as any).nom || (user as any).name || '';
+        token.email = user.email || '';
       }
       return token;
     },

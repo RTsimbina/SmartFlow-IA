@@ -69,6 +69,9 @@ export const API_PERMISSIONS: Record<
       DELETE: ['ADMINISTRATEUR'],
     },
   },
+  '/api/reporting': {
+    roles: ['ADMINISTRATEUR', 'COMPTABILITE'],
+  },
 };
 
 // ─── Fonctions d'autorisation ────────────────────────────────────────────────

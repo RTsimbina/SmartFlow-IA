@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
     );
 
+    const userRole = request.headers.get('x-user-role') || '';
+    const userId = request.headers.get('x-user-id') || '';
+
     const where: Prisma.DossierWhereInput = {};
+
+    // ─── Isolation des données : UTILISATEUR ne voit que ses dossiers créés ───
+    if (userRole === 'UTILISATEUR') {
+      where.createurId = userId;
+    }
 
     // Filter by statut
     if (statut) {
@@ -128,6 +136,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userId = request.headers.get('x-user-id') || '';
+
     const historiqueInit = JSON.stringify([
       { date: new Date().toISOString(), statut: "RECU", commentaire: "Dossier créé manuellement" },
     ]);
@@ -140,6 +150,7 @@ export async function POST(request: NextRequest) {
         beneficiaire,
         typeDossier,
         gestionnaireAccueilId: gestionnaireAccueilId || null,
+        createurId: userId,
         montantReclame: montantReclame || 0,
         assure: assure || null,
         nSS: nSS || null,

@@ -7,8 +7,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const authError = await checkAuth(request);
     if (authError) return authError;
     const { id } = await params;
+    const userRole = request.headers.get('x-user-role') || '';
+
+    // ─── Isolation : les commentaires privés ne sont visibles que par l'équipe interne ───
+    const whereCommentaire: Record<string, unknown> = { dossierId: id };
+    if (userRole === 'UTILISATEUR') {
+      whereCommentaire.prive = false;
+    }
+
     const commentaires = await db.commentaire.findMany({
-      where: { dossierId: id },
+      where: whereCommentaire,
       orderBy: { createdAt: "desc" },
       include: { auteur: { select: { id: true, nom: true, role: true } } },
     });
@@ -36,11 +44,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
     }
 
+    // Seuls les rôles internes peuvent créer des commentaires privés
+    const userRole = request.headers.get('x-user-role') || '';
+    if (prive === true && userRole === 'UTILISATEUR') {
+      return NextResponse.json({ erreur: 'Les commentaires privés sont réservés à l\'équipe interne' }, { status: 403 });
+    }
+
+    const userId = request.headers.get('x-user-id') || '';
+
     const commentaire = await db.commentaire.create({
       data: {
         dossierId: id,
         contenu: contenu.trim(),
         prive: prive === true,
+        auteurId: userId,
       },
       include: { auteur: { select: { id: true, nom: true, role: true } } },
     });

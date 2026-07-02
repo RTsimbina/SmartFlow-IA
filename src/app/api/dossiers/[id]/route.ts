@@ -22,6 +22,20 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   REJETE: [],
 };
 
+// Seuls certains rôles peuvent effectuer certaines transitions
+const ROLE_TRANSITIONS: Record<string, string[]> = {
+  'RECU_EN_ANALYSE': ['ADMINISTRATEUR', 'ACCUEIL'],
+  'RECU_REJETE': ['ADMINISTRATEUR', 'TECHNIQUE'],
+  'EN_ANALYSE_VALIDE': ['ADMINISTRATEUR', 'TECHNIQUE'],
+  'EN_ANALYSE_REJETE': ['ADMINISTRATEUR', 'TECHNIQUE'],
+  'VALIDE_EN_COMPTABILITE': ['ADMINISTRATEUR', 'TECHNIQUE'],
+  'VALIDE_REJETE': ['ADMINISTRATEUR', 'TECHNIQUE'],
+  'EN_COMPTABILITE_EN_PAIEMENT': ['ADMINISTRATEUR', 'COMPTABILITE'],
+  'EN_COMPTABILITE_REJETE': ['ADMINISTRATEUR', 'COMPTABILITE'],
+  'EN_PAIEMENT_PAYE': ['ADMINISTRATEUR', 'COMPTABILITE'],
+  'EN_PAIEMENT_REJETE': ['ADMINISTRATEUR', 'COMPTABILITE'],
+};
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,11 +82,25 @@ export async function PATCH(
       );
     }
 
+    // Vérification du rôle pour cette transition
+    const userRole = request.headers.get('x-user-role');
+    const userId = request.headers.get('x-user-id');
+    const transitionKey = `${existing.statut}_${statut}`;
+    const allowedRoles = ROLE_TRANSITIONS[transitionKey];
+
+    if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+      return NextResponse.json(
+        { error: `Le rôle '${userRole}' n'est pas autorisé à effectuer la transition de "${existing.statut}" vers "${statut}"` },
+        { status: 403 }
+      );
+    }
+
     const historiqueEntry = {
       date: new Date().toISOString(),
       statut: statut,
       statutPrecedent: existing.statut,
       commentaire: "Changement via Kanban",
+      ...(userId ? { userId } : {}),
     };
 
     const currentHistorique: unknown[] = (() => {
