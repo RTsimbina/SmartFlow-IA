@@ -1,14 +1,60 @@
 'use client';
 
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import {
+  Send, Bot, User, Loader2, Search, CheckCircle2, Clock, AlertTriangle,
+  XCircle, ChevronRight, Circle, FileText, CreditCard, ArrowRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { statutLabel, statutColor, typeDossierLabel, formatDate, formatMontant } from './format';
+
+/* ─────────── Types ─────────── */
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+type EtapeStatut = 'termine' | 'en_cours' | 'en_attente' | 'saute';
+
+interface Etape {
+  nom: string;
+  statut: EtapeStatut;
+  date: string | Date | null;
+  gestionnaire: string | null;
+  details: string;
+}
+
+interface PaiementInfo {
+  montantReclame: number;
+  montantValide: number | null;
+  ecartMontant: number | null;
+  tauxEcart: number | null;
+  ticketModerateur: number;
+  partPatient: number;
+  partEntreprise: number;
+  montantPaye: number;
+  datePaiement: string | Date | null;
+  referencePaiement: string | null;
+  statutPaiement: string;
+}
+
+interface SuiviResult {
+  id: string;
+  numeroDossier: string;
+  beneficiaire: string;
+  typeDossier: string;
+  societeNom: string;
+  statut: string;
+  dateReception: string;
+  etapes: Etape[];
+  delais: { reception: number; technique: number | null; comptabilite: number | null; total: number | null };
+  alertes: string[];
+  paiement: PaiementInfo;
 }
 
 const suggestedQuestions = [
@@ -19,14 +65,314 @@ const suggestedQuestions = [
   'Quels dossiers sont en retard à la comptabilité ?',
 ];
 
-export default function ChatView() {
+/* ─────────── Composant étape de traitement ─────────── */
+
+function EtapePipeline({ etape, isLast }: { etape: Etape; isLast: boolean }) {
+  const iconMap: Record<EtapeStatut, React.ReactNode> = {
+    termine: <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />,
+    en_cours: <Loader2 className="size-5 text-sky-600 animate-spin shrink-0" />,
+    en_attente: <Circle className="size-5 text-slate-300 shrink-0" />,
+    saute: <XCircle className="size-5 text-slate-300 shrink-0" />,
+  };
+
+  const borderMap: Record<EtapeStatut, string> = {
+    termine: 'border-emerald-400 bg-emerald-50/50',
+    en_cours: 'border-sky-400 bg-sky-50/50 ring-1 ring-sky-200',
+    en_attente: 'border-slate-200 bg-slate-50/50',
+    saute: 'border-slate-200 bg-slate-50/50 opacity-50',
+  };
+
+  return (
+    <div className="flex gap-3">
+      {/* Colonne icônes + trait vertical */}
+      <div className="flex flex-col items-center">
+        {iconMap[etape.statut]}
+        {!isLast && (
+          <div className={`w-0.5 flex-1 min-h-[24px] ${
+            etape.statut === 'termine' ? 'bg-emerald-300' : 'bg-slate-200'
+          }`} />
+        )}
+      </div>
+
+      {/* Contenu de l'étape */}
+      <div className={`flex-1 rounded-lg border p-3 mb-2 ${borderMap[etape.statut]}`}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="font-semibold text-sm text-foreground">{etape.nom}</span>
+          {etape.date && (
+            <span className="text-xs text-muted-foreground">
+              {formatDate(etape.date)}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">{etape.details}</p>
+        {etape.gestionnaire && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Gestionnaire : <span className="font-medium text-foreground">{etape.gestionnaire}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Composant fiche paiement ─────────── */
+
+function FichePaiement({ p, statut }: { p: PaiementInfo; statut: string }) {
+  const paiementStatutLabel: Record<string, { label: string; class: string }> = {
+    PAYE: { label: 'Soldé', class: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    EN_COURS: { label: 'En cours de règlement', class: 'bg-sky-100 text-sky-700 border-sky-200' },
+    EN_ATTENTE: { label: 'En attente', class: 'bg-amber-100 text-amber-700 border-amber-200' },
+    NON_APPLICABLE: { label: 'Non applicable', class: 'bg-slate-100 text-slate-500 border-slate-200' },
+  };
+
+  const ps = paiementStatutLabel[p.statutPaiement] || paiementStatutLabel.EN_ATTENTE;
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <CreditCard className="size-4 text-emerald-600" />
+          Détails du paiement
+        </h4>
+        <Badge variant="outline" className={ps.class}>{ps.label}</Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Montant réclamé</span>
+          <span className="font-medium">{formatMontant(p.montantReclame)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Montant validé</span>
+          <span className="font-medium">{p.montantValide ? formatMontant(p.montantValide) : '—'}</span>
+        </div>
+        {p.ecartMontant !== null && p.ecartMontant > 0 && (
+          <div className="flex justify-between col-span-2">
+            <span className="text-amber-600">Écart</span>
+            <span className="font-medium text-amber-600">
+              {formatMontant(p.ecartMontant)} ({p.tauxEcart}%)
+            </span>
+          </div>
+        )}
+        <Separator className="col-span-2 my-1" />
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Ticket modérateur</span>
+          <span className="font-medium">{p.ticketModerateur ? formatMontant(p.ticketModerateur) : '—'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Part patient</span>
+          <span className="font-medium">{p.partPatient ? formatMontant(p.partPatient) : '—'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Part entreprise</span>
+          <span className="font-medium">{p.partEntreprise ? formatMontant(p.partEntreprise) : '—'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Montant payé</span>
+          <span className="font-bold text-emerald-600">{p.montantPaye ? formatMontant(p.montantPaye) : '—'}</span>
+        </div>
+      </div>
+
+      {p.datePaiement && (
+        <p className="text-xs text-muted-foreground">
+          Date de paiement : <span className="font-medium text-foreground">{formatDate(p.datePaiement)}</span>
+          {p.referencePaiement && (
+            <> — Réf : <span className="font-medium text-foreground">{p.referencePaiement}</span></>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─────────── Composant carte résultat de suivi ─────────── */
+
+function SuiviCard({ r }: { r: SuiviResult }) {
+  return (
+    <Card className="p-4 space-y-4">
+      {/* En-tête du dossier */}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-mono text-sm font-semibold text-foreground">{r.numeroDossier}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {r.beneficiaire} — {r.societeNom} — {typeDossierLabel(r.typeDossier)}
+          </p>
+        </div>
+        <Badge variant="outline" className={statutColor(r.statut)}>
+          {statutLabel(r.statut)}
+        </Badge>
+      </div>
+
+      {/* Alertes */}
+      {r.alertes.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-1">
+          {r.alertes.map((a, i) => (
+            <p key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+              <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+              {a}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Pipeline de traitement */}
+      <div>
+        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+          <FileText className="size-4 text-emerald-600" />
+          Situation du traitement
+        </h4>
+        <div>
+          {r.etapes.map((etape, idx) => (
+            <EtapePipeline
+              key={idx}
+              etape={etape}
+              isLast={idx === r.etapes.length - 1}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Détails du paiement */}
+      <FichePaiement p={r.paiement} statut={r.statut} />
+
+      {/* Délais */}
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span>Depuis réception : <strong className="text-foreground">{r.delais.reception}j</strong></span>
+        {r.delais.technique !== null && (
+          <span>Depuis technique : <strong className="text-foreground">{r.delais.technique}j</strong></span>
+        )}
+        {r.delais.comptabilite !== null && (
+          <span>Depuis comptabilité : <strong className="text-foreground">{r.delais.comptabilite}j</strong></span>
+        )}
+        {r.delais.total !== null && (
+          <span>Délai total : <strong className="text-foreground">{r.delais.total}j</strong></span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* ─────────── Onglet Suivi Dossier & Paiement ─────────── */
+
+function SuiviTab() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SuiviResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleSearch(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = query.trim();
+    if (!trimmed || loading) return;
+    setLoading(true);
+    setSearched(true);
+    try {
+      const res = await fetch(`/api/dossiers/suivi?q=${encodeURIComponent(trimmed)}`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Barre de recherche */}
+      <div className="p-4 border-b bg-background">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="N° dossier, bénéficiaire ou société..."
+                disabled={loading}
+                className="pl-9"
+              />
+            </div>
+            <Button type="submit" disabled={!query.trim() || loading}>
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+              <span className="ml-2 hidden sm:inline">Rechercher</span>
+            </Button>
+          </form>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Recherchez par numéro de dossier (ex: DOS-2026-000001), nom du bénéficiaire ou nom de la société pour suivre le traitement et le paiement.
+        </p>
+      </div>
+
+      {/* Zone de résultats */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {!searched && !loading && (
+          <div className="flex flex-col items-center justify-center min-h-full py-12">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 mb-4">
+              <FileText className="size-7 text-emerald-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-1">
+              Suivi de Traitement & Paiement
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
+              Suivez en temps réel l&apos;avancement du traitement de chaque dossier de santé et l&apos;état des remboursements ou règlements de factures.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg w-full text-sm">
+              <div className="rounded-lg border p-3 space-y-1">
+                <p className="font-medium text-foreground flex items-center gap-2">
+                  <ArrowRight className="size-3.5 text-emerald-600" />
+                  Dossier payé
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Le remboursement client ou le règlement du prestataire médical a été effectué.
+                </p>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <p className="font-medium text-foreground flex items-center gap-2">
+                  <Clock className="size-3.5 text-sky-600" />
+                  En cours de traitement
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Le dossier est au service médical, technique ou en cours de paiement comptable.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="size-6 animate-spin text-emerald-600" />
+            <span className="ml-2 text-sm text-muted-foreground">Recherche en cours...</span>
+          </div>
+        )}
+
+        {searched && !loading && results.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <p className="text-sm text-muted-foreground">Aucun dossier trouvé pour cette recherche.</p>
+          </div>
+        )}
+
+        {results.map((r) => (
+          <SuiviCard key={r.id} r={r} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Onglet Chat Assistant IA ─────────── */
+
+function ChatTab() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll vers le bas à chaque nouveau message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
@@ -48,9 +394,7 @@ export default function ChatView() {
         body: JSON.stringify({ question: trimmed }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Erreur ${res.status}: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`Erreur ${res.status}: ${res.statusText}`);
 
       const data = await res.json();
       const assistantMessage: Message = {
@@ -63,8 +407,7 @@ export default function ChatView() {
         ...prev,
         {
           role: 'assistant',
-          content:
-            'Désolé, une erreur est survenue lors du traitement de votre question. Veuillez réessayer.',
+          content: 'Désolé, une erreur est survenue lors du traitement de votre question. Veuillez réessayer.',
         },
       ]);
     } finally {
@@ -75,11 +418,6 @@ export default function ChatView() {
 
   function handleSuggestedQuestion(question: string) {
     setInput(question);
-    // Déclencher l'envoi automatiquement
-    const syntheticEvent = {
-      preventDefault: () => {},
-    } as FormEvent;
-    // On simule l'envoi direct
     const userMessage: Message = { role: 'user', content: question };
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
@@ -101,11 +439,7 @@ export default function ChatView() {
       .catch(() => {
         setMessages((prev) => [
           ...prev,
-          {
-            role: 'assistant',
-            content:
-              'Désolé, une erreur est survenue. Veuillez réessayer.',
-          },
+          { role: 'assistant', content: 'Désolé, une erreur est survenue. Veuillez réessayer.' },
         ]);
       })
       .finally(() => {
@@ -118,15 +452,12 @@ export default function ChatView() {
     <div className="flex h-full flex-col">
       {/* Zone de messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Questions suggérées - affichées uniquement quand aucun message */}
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center min-h-full py-8">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 mb-4">
               <Bot className="size-7 text-emerald-600" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground mb-1">
-              Assistant IA SmartFlow
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground mb-1">Assistant IA SmartFlow</h2>
             <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
               Posez vos questions sur les dossiers, les remboursements, les statistiques ou tout
               autre sujet lié à la gestion.
@@ -147,20 +478,16 @@ export default function ChatView() {
           </div>
         )}
 
-        {/* Messages */}
         {messages.map((msg, idx) => (
           <div
             key={idx}
             className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {/* Icône pour l'assistant */}
             {msg.role === 'assistant' && (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mt-1">
                 <Bot className="size-4 text-emerald-600" />
               </div>
             )}
-
-            {/* Bulle de message */}
             <div
               className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed max-w-[75%] whitespace-pre-wrap ${
                 msg.role === 'user'
@@ -170,8 +497,6 @@ export default function ChatView() {
             >
               {msg.content}
             </div>
-
-            {/* Icône pour l'utilisateur */}
             {msg.role === 'user' && (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 mt-1">
                 <User className="size-4 text-white" />
@@ -180,7 +505,6 @@ export default function ChatView() {
           </div>
         ))}
 
-        {/* Indicateur de chargement */}
         {loading && (
           <div className="flex gap-2 justify-start">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mt-1">
@@ -189,9 +513,7 @@ export default function ChatView() {
             <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex items-center gap-2">
                 <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  L&apos;assistant réfléchit…
-                </span>
+                <span className="text-sm text-muted-foreground">L&apos;assistant réfléchit...</span>
               </div>
             </div>
           </div>
@@ -207,7 +529,7 @@ export default function ChatView() {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Posez votre question…"
+            placeholder="Posez votre question..."
             disabled={loading}
             className="flex-1"
             aria-label="Saisir une question"
@@ -218,13 +540,56 @@ export default function ChatView() {
             disabled={!input.trim() || loading}
             aria-label="Envoyer la question"
           >
-            {loading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Composant principal avec onglets ─────────── */
+
+export default function ChatView() {
+  const [activeTab, setActiveTab] = useState<'chat' | 'suivi'>('suivi');
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Onglets */}
+      <div className="flex border-b bg-background px-4 pt-3">
+        <button
+          onClick={() => setActiveTab('suivi')}
+          className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'suivi'
+              ? 'text-emerald-700 bg-emerald-50/50'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <FileText className="size-4" />
+          <span>Suivi Traitement & Paiement</span>
+          {activeTab === 'suivi' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-t" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'chat'
+              ? 'text-emerald-700 bg-emerald-50/50'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Bot className="size-4" />
+          <span>Assistant IA</span>
+          {activeTab === 'chat' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-t" />
+          )}
+        </button>
+      </div>
+
+      {/* Contenu de l'onglet actif */}
+      <div className="flex-1 min-h-0">
+        {activeTab === 'suivi' ? <SuiviTab /> : <ChatTab />}
       </div>
     </div>
   );
