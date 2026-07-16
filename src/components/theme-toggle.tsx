@@ -9,6 +9,9 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // Pattern standard next-themes : le thème n'est connu qu'après le montage côté
+  // client (pour éviter un mismatch d'hydratation SSR/CSR).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {

@@ -45,6 +45,7 @@ import {
   Brain,
   ShieldAlert,
   TrendingDown,
+  XCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, formatMontant, statutLabel, statutColor, typeDossierLabel } from './format';
@@ -57,12 +58,14 @@ interface DossierDetail {
   numeroDossier: string;
   dateReception: string;
   beneficiaire: string;
-  assure: string | null;
+  assure: { id: string; nom: string; prenom: string | null; nSS: string | null } | null;
+  assureId: string | null;
   nSS: string | null;
   typeDossier: string;
   statut: string;
   source: string;
-  prestataire: string | null;
+  prestataire: { id: string; nom: string; type: string } | null;
+  prestataireLegacy: string | null;
   dateSoins: string | null;
   moyenPaiement: string | null;
   observations: string | null;

@@ -28,7 +28,7 @@ interface PortailDossier {
   montantPaye?: number;
   datePaiement?: string;
   referencePaiement?: string;
-  prestataire?: string;
+  prestataireLegacy?: string;
   motifRejet?: string;
 }
 
@@ -641,7 +641,10 @@ function PortailSecuriseTab() {
   }, []);
 
   useEffect(() => {
+    // Réinitialisation légitime de l'état affiché quand la société sélectionnée
+    // est effacée (pas de fetch en cascade, juste un reset synchrone local).
     if (!selectedSociete) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setKpis(null);
       setContrats([]);
       setDossiers([]);
@@ -655,7 +658,7 @@ function PortailSecuriseTab() {
       fetch(`/api/contrats`).then(r => r.json()),
     ]).then(([dossData, contratsData]) => {
       const dossiersList = dossData.dossiers || [];
-      setDossiers(dossiersList.map((d: {numeroDossier: string; statut: string; typeDossier: string; dateReception: string; montantReclame: number; montantPaye?: number; datePaiement?: string; referencePaiement?: string; prestataire?: string; motifRejet?: string}) => ({
+      setDossiers(dossiersList.map((d: {numeroDossier: string; statut: string; typeDossier: string; dateReception: string; montantReclame: number; montantPaye?: number; datePaiement?: string; referencePaiement?: string; prestataireLegacy?: string; motifRejet?: string}) => ({
         numeroDossier: d.numeroDossier,
         statut: d.statut,
         statutLabel: statutLabel(d.statut),
@@ -665,7 +668,7 @@ function PortailSecuriseTab() {
         montantPaye: d.montantPaye,
         datePaiement: d.datePaiement,
         referencePaiement: d.referencePaiement,
-        prestataire: d.prestataire,
+        prestataireLegacy: d.prestataireLegacy,
         motifRejet: d.motifRejet,
       })));
 

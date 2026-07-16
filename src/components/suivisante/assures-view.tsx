@@ -63,7 +63,7 @@ const TYPE_LABELS: Record<string, string> = {
   AUTRE: 'Autre',
 };
 
-export default function AssuresView({ userRole }: { userRole: string }) {
+export default function AssuresView({ userRole }: { userRole: string | null }) {
   const canEdit = userRole === 'TECHNIQUE';
   const [assures, setAssures] = useState<Assure[]>([]);
   const [societes, setSocietes] = useState<Societe[]>([]);

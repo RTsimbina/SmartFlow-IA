@@ -157,7 +157,7 @@ export const API_PERMISSIONS: Record<
 
 interface AuthResult {
   authorized: boolean;
-  token: ReturnType<typeof getToken> | null;
+  token: Awaited<ReturnType<typeof getToken>> | null;
   error: string;
   status: number;
 }

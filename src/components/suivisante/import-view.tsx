@@ -137,6 +137,10 @@ export default function ImportView() {
     } catch { /* silent */ }
   }
 
+  // Chargement des données au montage (setState après un fetch asynchrone, pas de
+  // façon synchrone dans le corps de l'effet). À terme, migrer vers react-query
+  // (déjà utilisé ailleurs dans le projet) pour supprimer ce pattern.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadHistorique(); }, []);
 
   // Colonnes Excel communes pour les deux flux

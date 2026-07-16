@@ -15,7 +15,7 @@
  */
 
 // ─── Cache SDK (dev local uniquement) ─────────────────────────────────────────
-let sdkInstance: InstanceType<typeof import('z-ai-web-dev-sdk').default> | null = null;
+let sdkInstance: Awaited<ReturnType<typeof import('z-ai-web-dev-sdk').default.create>> | null = null;
 let sdkInitFailed = false;
 
 async function getLocalSDK() {

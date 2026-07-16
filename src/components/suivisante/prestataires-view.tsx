@@ -51,7 +51,7 @@ interface Prestataire {
   updatedAt: string;
 }
 
-export default function PrestatairesView({ userRole }: { userRole: string }) {
+export default function PrestatairesView({ userRole }: { userRole: string | null }) {
   const canEdit = userRole === 'TECHNIQUE';
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
   const [loading, setLoading] = useState(true);
