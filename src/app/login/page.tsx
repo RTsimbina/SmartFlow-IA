@@ -13,6 +13,7 @@ const DEMO_CREDENTIALS = [
   { email: 'accueil@suivisante.mg', role: 'Accueil', color: 'bg-blue-100 text-blue-700 border-blue-200' },
   { email: 'technique@suivisante.mg', role: 'Technique', color: 'bg-amber-100 text-amber-700 border-amber-200' },
   { email: 'compta@suivisante.mg', role: 'Comptabilité', color: 'bg-green-100 text-green-700 border-green-200' },
+  { email: 'sante@suivisante.mg', role: 'Contrôleur Santé', color: 'bg-teal-100 text-teal-700 border-teal-200' },
   { email: 'utilisateur@suivisante.mg', role: 'Utilisateur', color: 'bg-purple-100 text-purple-700 border-purple-200' },
 ];
 
