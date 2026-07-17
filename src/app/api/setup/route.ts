@@ -380,7 +380,7 @@ export async function GET(request: Request) {
       const passwordHash = await hash('SuiviSante@2026', 10);
       const demoEmails = [
         `admin@${newDomain}`, `accueil@${newDomain}`, `technique@${newDomain}`,
-        `compta@${newDomain}`, `utilisateur@${newDomain}`,
+        `compta@${newDomain}`, `utilisateur@${newDomain}`, `sante@${newDomain}`,
       ];
       for (const email of demoEmails) {
         await db.utilisateur.updateMany({ where: { email }, data: { password: passwordHash } });
@@ -404,6 +404,7 @@ export async function GET(request: Request) {
       { email: 'technique@suivisante.mg', nom: 'Jean-Pierre Rakoto', password: passwordHash, role: 'TECHNIQUE' },
       { email: 'compta@suivisante.mg', nom: 'Marie Rasoa', password: passwordHash, role: 'COMPTABILITE' },
       { email: 'utilisateur@suivisante.mg', nom: 'Andry Faly', password: passwordHash, role: 'UTILISATEUR' },
+      { email: 'sante@suivisante.mg', nom: 'Naina Santé', password: passwordHash, role: 'SANTE' },
     ];
 
     for (const u of utilisateursData) {
