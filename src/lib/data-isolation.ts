@@ -18,10 +18,10 @@
 import type { Prisma } from "@prisma/client";
 
 /** Rôles internes ayant accès à toutes les données */
-const INTERNAL_ROLES = ["ADMINISTRATEUR", "ACCUEIL", "TECHNIQUE", "COMPTABILITE"];
+const INTERNAL_ROLES = ["ADMINISTRATEUR", "ACCUEIL", "TECHNIQUE", "COMPTABILITE", "SANTE"];
 
 /** Rôles pouvant voir les commentaires privés */
-const PRIVATE_COMMENT_ROLES = ["ADMINISTRATEUR", "TECHNIQUE", "COMPTABILITE"];
+const PRIVATE_COMMENT_ROLES = ["ADMINISTRATEUR", "TECHNIQUE", "COMPTABILITE", "SANTE"];
 
 /**
  * Retourne le filtre Prisma à appliquer sur les dossiers pour un rôle/utilisateur donné.

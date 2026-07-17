@@ -8,7 +8,8 @@ export type RoleType =
   | 'ACCUEIL'
   | 'TECHNIQUE'
   | 'COMPTABILITE'
-  | 'UTILISATEUR';
+  | 'UTILISATEUR'
+  | 'SANTE';
 
 export const ROLE_LABELS: Record<RoleType, string> = {
   ADMINISTRATEUR: 'Administrateur',
@@ -16,6 +17,7 @@ export const ROLE_LABELS: Record<RoleType, string> = {
   TECHNIQUE: 'Service Technique',
   COMPTABILITE: 'Comptabilité',
   UTILISATEUR: 'Utilisateur',
+  SANTE: 'Contrôleur Santé',
 };
 
 interface AuthContextValue {

@@ -35,6 +35,7 @@ const ROLE_ICONS: Record<string, typeof Shield> = {
   TECHNIQUE: Shield,
   COMPTABILITE: ShieldCheck,
   UTILISATEUR: UserCheck,
+  SANTE: ShieldCheck,
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -43,6 +44,7 @@ const ROLE_COLORS: Record<string, string> = {
   TECHNIQUE: 'bg-amber-100 text-amber-700 border-amber-200',
   COMPTABILITE: 'bg-purple-100 text-purple-700 border-purple-200',
   UTILISATEUR: 'bg-gray-100 text-gray-700 border-gray-200',
+  SANTE: 'bg-teal-100 text-teal-700 border-teal-200',
 };
 
 function getInitials(nom: string): string {
